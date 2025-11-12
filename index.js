@@ -1,37 +1,34 @@
-require('dotenv').config();
-const fs = require('fs');
-const { google } = require('googleapis');
-const { Client } = require('@notionhq/client');
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-// FORCE NO CACHE — ALWAYS RUN FRESH
-if (!global.alreadyRan) {
-  global.alreadyRan = true;
-  // rest of your code runs only once per deploy
-}
-export const dynamic = 'force-dynamic';  // ← THIS LINE KILLS ALL CACHING FOREVER
+export async function GET() {
+  console.log(`\nFULL SYNC STARTED → ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Jakarta' })}`);
 
-let credentials;
-try {
-  const raw = fs.readFileSync(process.env.GOOGLE_CREDENTIALS_FILE, 'utf8');
-  credentials = JSON.parse(raw);
-  credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
-} catch (err) {
-  console.error('Credentials error:', err.message);
-  process.exit(1);
-}
+  // === YOUR FULL CODE BELOW (paste everything from require('dotenv') down to the end) ===
+  require('dotenv').config();
+  const fs = require('fs');
+  const { google } = require('googleapis');
+  const { Client } = require('@notionhq/client');
 
-const auth = google.auth.fromJSON(credentials);
-auth.scopes = [
-  'https://www.googleapis.com/auth/spreadsheets.readonly',
-  'https://www.googleapis.com/auth/contacts'
-];
+  let credentials;
+  try {
+    const raw = fs.readFileSync(process.env.GOOGLE_CREDENTIALS_FILE, 'utf8');
+    credentials = JSON.parse(raw);
+    credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+  } catch (err) {
+    console.error('Credentials error:', err.message);
+    return new Response('Credentials error', { status: 500 });
+  }
 
-const sheets = google.sheets({ version: 'v4', auth });
-const people = google.people({ version: 'v1', auth });
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
+  const auth = google.auth.fromJSON(credentials);
+  auth.scopes = [
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/contacts'
+  ];
 
-async function sync() {
-  console.log(`\nSYNC STARTED → ${new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' })}`);
+  const sheets = google.sheets({ version: 'v4', auth });
+  const people = google.people({ version: 'v1', auth });
+  const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
   try {
     const res = await sheets.spreadsheets.values.get({
@@ -40,11 +37,14 @@ async function sync() {
     });
 
     const rows = res.data.values || [];
-    if (!rows.length) return console.log('No members found.');
+    if (!rows.length) {
+      console.log('No members found.');
+      return new Response('SYNC DONE — No members', { status: 200 });
+    }
 
     console.log(`Found ${rows.length} members in Google Sheet`);
 
-    // NOTION v2.2.15+ — DIRECT CALL (NO .v1)
+    // === REST OF YOUR ORIGINAL CODE (Notion query, map, loop, etc.) ===
     let existing = [];
     let next_cursor = undefined;
     do {
@@ -79,10 +79,7 @@ async function sync() {
 
       try {
         if (pageId) {
-          await notion.pages.update({
-            page_id: pageId,
-            properties
-          });
+          await notion.pages.update({ page_id: pageId, properties });
           console.log(`Updated → ${name} (ID: ${id})`);
           updated++;
         } else {
@@ -110,10 +107,10 @@ async function sync() {
     }
 
     console.log(`\nSYNC DONE! Updated: ${updated} | Created: ${created} | Total: ${rows.length}`);
+    return new Response(`SYNC DONE! ${rows.length} members processed`, { status: 200 });
+
   } catch (err) {
     console.error("SYNC FAILED:", err.message);
+    return new Response(`ERROR: ${err.message}`, { status: 500 });
   }
 }
-
-sync();
-setInterval(sync, 24 * 60 * 60 * 1000);
