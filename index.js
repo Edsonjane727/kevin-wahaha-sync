@@ -8,6 +8,7 @@ if (!global.alreadyRan) {
   global.alreadyRan = true;
   // rest of your code runs only once per deploy
 }
+export const dynamic = 'force-dynamic';  // ← THIS LINE KILLS ALL CACHING FOREVER
 
 let credentials;
 try {
