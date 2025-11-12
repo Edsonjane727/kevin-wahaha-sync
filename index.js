@@ -3,6 +3,12 @@ const fs = require('fs');
 const { google } = require('googleapis');
 const { Client } = require('@notionhq/client');
 
+// FORCE NO CACHE — ALWAYS RUN FRESH
+if (!global.alreadyRan) {
+  global.alreadyRan = true;
+  // rest of your code runs only once per deploy
+}
+
 let credentials;
 try {
   const raw = fs.readFileSync(process.env.GOOGLE_CREDENTIALS_FILE, 'utf8');
