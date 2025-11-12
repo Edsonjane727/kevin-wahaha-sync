@@ -29,7 +29,7 @@ async function sync() {
   try {
     const res = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.SHEET_ID,
-      range: 'Members!A3:C'
+      range: 'Members!A7:C'
     });
 
     const rows = res.data.values || [];
